@@ -1,7 +1,6 @@
 import cv2
 
 def postprocess_segmentation(segmented):
-    """ Postprocess segmented image to refine the results. """
     gray = cv2.cvtColor(segmented, cv2.COLOR_BGR2GRAY) if len(segmented.shape) == 3 else segmented
     _, binary = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15, 15))
