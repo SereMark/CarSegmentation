@@ -2,39 +2,39 @@ import cv2
 import numpy as np
 
 def adaptive_preprocess(image, threshold=2, clip_limit=3.0):
-    # Convert the image to different color spaces that are useful for segmentation
-    hsv_img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    ycrcb_img = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+    hsv_img = enhance_contrast_hsv(image, clip_limit)
+    ycrcb_img = enhance_contrast_ycrcb(image, clip_limit)
+    enhanced_img = cv2.addWeighted(hsv_img, 0.5, ycrcb_img, 0.5, 0)
+    filtered_img = apply_bilateral_filter(enhanced_img)
+    edges = detect_edges(filtered_img, threshold)
+    refined_edges = apply_morphology(edges)
+    return refined_edges
 
-    # Apply CLAHE to each channel to improve the contrast of the image
+def enhance_contrast_hsv(image, clip_limit):
+    hsv_img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
     hsv_img[:, :, 2] = clahe.apply(hsv_img[:, :, 2])
+    return cv2.cvtColor(hsv_img, cv2.COLOR_HSV2BGR)
+
+def enhance_contrast_ycrcb(image, clip_limit):
+    ycrcb_img = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
     ycrcb_img[:, :, 0] = clahe.apply(ycrcb_img[:, :, 0])
+    return cv2.cvtColor(ycrcb_img, cv2.COLOR_YCrCb2BGR)
 
-    # Convert back to BGR color space
-    enhanced_hsv = cv2.cvtColor(hsv_img, cv2.COLOR_HSV2BGR)
-    enhanced_ycrcb = cv2.cvtColor(ycrcb_img, cv2.COLOR_YCrCb2BGR)
+def apply_bilateral_filter(image):
+    return cv2.bilateralFilter(image, 9, 75, 75)
 
-    # Combine the two enhanced images
-    enhanced_img = cv2.addWeighted(enhanced_hsv, 0.5, enhanced_ycrcb, 0.5, 0)
-
-    # Convert to grayscale and apply a bilateral filter to reduce noise while keeping edges sharp
-    gray = cv2.cvtColor(enhanced_img, cv2.COLOR_BGR2GRAY)
-    filtered = cv2.bilateralFilter(gray, 9, 75, 75)
-
-    # Apply adaptive thresholding with adjustable threshold
-    adaptive_thresh = cv2.adaptiveThreshold(filtered, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, threshold)
-
-    # Canny edge detection to find edges, parameterized by median value
-    median_val = np.median(filtered)
+def detect_edges(image, threshold):
+    gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    adaptive_thresh = cv2.adaptiveThreshold(gray_img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, threshold)
+    median_val = np.median(gray_img)
     sigma = 0.33
     lower = int(max(0, (1.0 - sigma) * median_val))
     upper = int(min(255, (1.0 + sigma) * median_val))
-    edges = cv2.Canny(adaptive_thresh, lower, upper)
+    return cv2.Canny(adaptive_thresh, lower, upper)
 
-    # Apply morphological operations to close small holes and open clumped objects
+def apply_morphology(edges):
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     closed_edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)
-    opened_edges = cv2.morphologyEx(closed_edges, cv2.MORPH_OPEN, kernel, iterations=1)
-
-    return opened_edges
+    return cv2.morphologyEx(closed_edges, cv2.MORPH_OPEN, kernel, iterations=1)
