@@ -65,14 +65,12 @@ def main():
             img_label.configure(image=img_pil)
             img_label.image = img_pil
 
-    # GUI setup
     root = tk.Tk()
     root.title("Vehicle Segmentation Application")
     root.geometry('1200x800')
     image_path = "data/test_images/autopalya-2-1024x576.jpg"
     image = cv2.imread(image_path)
     
-    # Control variables
     control_vars = {
         'noise_type': tk.StringVar(value='gaussian'),
         'noise_intensity': tk.DoubleVar(value=0.05),
@@ -100,7 +98,6 @@ def main():
 
     randomize_vars = {var: tk.BooleanVar(value=True) for var in control_vars if var not in {'controls', 'noise_type', 'color_channel'}}
 
-    # Image display setup
     image_frame_top = Frame(root)
     image_frame_top.grid(row=0, column=0, columnspan=3, sticky='nsew', padx=5, pady=5)
     image_frame_bottom = Frame(root)

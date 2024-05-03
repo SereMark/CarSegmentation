@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 
 def adaptive_preprocess(image, threshold=2, clip_limit=3.0, color_channel='BGR'):
-    # Enhance contrast and preprocess the image
     enhanced_img = enhance_contrast(image, clip_limit, color_channel)
     filtered_img = apply_bilateral_filter(enhanced_img)
     edges = detect_edges(filtered_img, threshold)
@@ -10,7 +9,6 @@ def adaptive_preprocess(image, threshold=2, clip_limit=3.0, color_channel='BGR')
     return refined_edges
 
 def enhance_contrast(image, clip_limit, color_channel):
-    # Apply Contrast Limited Adaptive Histogram Equalization (CLAHE)
     if color_channel == 'HSV':
         hsv_img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
         clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
@@ -30,11 +28,9 @@ def enhance_contrast(image, clip_limit, color_channel):
     return enhanced_img
 
 def apply_bilateral_filter(image):
-    # Apply bilateral filter to preserve edges while reducing noise
     return cv2.bilateralFilter(image, 9, 75, 75)
 
 def detect_edges(image, threshold):
-    # Detect edges using adaptive thresholding and Canny edge detection
     gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     adaptive_thresh = cv2.adaptiveThreshold(gray_img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, threshold)
     median_val = np.median(gray_img)
@@ -44,7 +40,6 @@ def detect_edges(image, threshold):
     return cv2.Canny(adaptive_thresh, lower, upper)
 
 def apply_morphology(edges):
-    # Apply morphological operations to refine edges
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
     closed_edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, kernel, iterations=2)
     return cv2.morphologyEx(closed_edges, cv2.MORPH_OPEN, kernel, iterations=1)

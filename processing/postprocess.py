@@ -6,10 +6,8 @@ def postprocess_segmentation(segmented, kernel_size=7, morphology_operations=2):
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
 
     if morphology_operations == 1:
-        # Apply only one morphological operation
         processed = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=2)
     elif morphology_operations == 2:
-        # Apply two morphological operations
         opened = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=2)
         processed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, kernel, iterations=2)
     else:
