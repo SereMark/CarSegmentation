@@ -4,15 +4,19 @@ import numpy as np
 def exclude_shadows(image, mask):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(hsv)
-    v_mean = np.mean(v)
-    s_mean = np.mean(s)
-    shadow_threshold_s = max(40, s_mean * 0.5)
-    shadow_threshold_v = max(75, v_mean * 0.5)
+    v_median = np.median(v)
+    s_median = np.median(s)
+    shadow_threshold_s = max(40, s_median * 0.5)
+    shadow_threshold_v = max(75, v_median * 0.5)
     shadow_mask = (s < shadow_threshold_s) & (v < shadow_threshold_v)
     return cv2.bitwise_and(mask, mask, mask=~shadow_mask.astype(np.uint8))
 
 def segment_vehicles(image, preprocessed_img, min_area_ratio=0.005, aspect_ratio_range=(0.2, 5.0), min_solidity=0.5):
-    contours, _ = cv2.findContours(preprocessed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Applying Gaussian Blur to smooth the image and reduce noise
+    blurred_img = cv2.GaussianBlur(preprocessed_img, (5, 5), 0)
+
+    # Contour detection
+    contours, _ = cv2.findContours(blurred_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     mask = np.zeros_like(preprocessed_img, dtype=np.uint8)
     min_area = image.shape[0] * image.shape[1] * min_area_ratio
 
@@ -29,6 +33,11 @@ def segment_vehicles(image, preprocessed_img, min_area_ratio=0.005, aspect_ratio
 
         if aspect_ratio_range[0] <= aspect_ratio <= aspect_ratio_range[1] and solidity > min_solidity:
             cv2.drawContours(mask, [contour], -1, 255, -1)
+
+    # Morphological opening and closing
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel, iterations=2)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel, iterations=2)
 
     mask_no_shadows = exclude_shadows(image, mask)
     segmented = cv2.bitwise_and(image, image, mask=mask_no_shadows)
