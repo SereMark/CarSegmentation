@@ -175,7 +175,6 @@ def adaptive_preprocess(image, threshold, clip_limit, color_channel):
     return cv2.morphologyEx(closed_edges, cv2.MORPH_OPEN, kernel, iterations=1)
 
 # Vehicle segmentation
-# Vehicle segmentation
 def segment_vehicles(preprocessed_img, min_area_ratio, aspect_ratio_range, min_solidity):
     # Ensure the preprocessed image is in color (BGR) format if not already
     if preprocessed_img.ndim == 2:
