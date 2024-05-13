@@ -5,13 +5,6 @@ from PIL import Image, ImageTk
 from random import uniform
 import numpy as np
 
-import tkinter as tk
-from tkinter import Checkbutton, Label, Scale, OptionMenu, Frame
-import cv2
-from PIL import Image, ImageTk
-from random import uniform
-import numpy as np
-
 # Application Title
 def main():
     root = tk.Tk()
@@ -42,16 +35,16 @@ def initialize_control_vars():
     ]
     return {
         'noise_type': tk.StringVar(value='gaussian'),
-        'noise_intensity': tk.DoubleVar(value=0.05),
+        'noise_intensity': tk.DoubleVar(value=0.02),
         'preprocess_threshold': tk.DoubleVar(value=1.5),
-        'contrast_clip_limit': tk.DoubleVar(value=2.0),
-        'color_channel': tk.StringVar(value='BGR'),
-        'segmentation_area_ratio': tk.DoubleVar(value=0.005),
-        'min_aspect_ratio': tk.DoubleVar(value=0.3),
-        'max_aspect_ratio': tk.DoubleVar(value=5.0),
-        'min_solidity': tk.DoubleVar(value=0.6),
+        'contrast_clip_limit': tk.DoubleVar(value=3.0),
+        'color_channel': tk.StringVar(value='HSV'),
+        'segmentation_area_ratio': tk.DoubleVar(value=0.01),
+        'min_aspect_ratio': tk.DoubleVar(value=0.75),
+        'max_aspect_ratio': tk.DoubleVar(value=4.0),
+        'min_solidity': tk.DoubleVar(value=0.3),
         'postprocess_kernel_size': tk.IntVar(value=5),
-        'morphology_operations': tk.IntVar(value=3),
+        'morphology_operations': tk.IntVar(value=5),
         'controls': controls
     }
 
@@ -114,7 +107,7 @@ def display_images(images, image_labels):
 def set_random_values(control_vars, randomize_vars, update_function):
     for var in randomize_vars:
         if randomize_vars[var].get():
-            control_vars[var].set(uniform(control_vars[var].get()['from_'], control_vars[var].get()['to']))
+            control_vars[var].set(uniform(control_vars[var]._from, control_vars[var]._to))
     update_function()
 
 # Noise addition
@@ -176,7 +169,6 @@ def adaptive_preprocess(image, threshold, clip_limit, color_channel):
 
 # Vehicle segmentation
 def segment_vehicles(preprocessed_img, min_area_ratio, aspect_ratio_range, min_solidity):
-    # Ensure the preprocessed image is in color (BGR) format if not already
     if preprocessed_img.ndim == 2:
         preprocessed_img_color = cv2.cvtColor(preprocessed_img, cv2.COLOR_GRAY2BGR)
     else:
@@ -209,7 +201,6 @@ def segment_vehicles(preprocessed_img, min_area_ratio, aspect_ratio_range, min_s
 
 # Post-process segmented image
 def postprocess_segmentation(segmented, kernel_size, morphology_operations):
-    # Ensure the input image is grayscale before applying morphological operations
     if segmented.ndim == 3 and segmented.shape[2] == 3:
         gray = cv2.cvtColor(segmented, cv2.COLOR_BGR2GRAY)
     else:
@@ -218,24 +209,18 @@ def postprocess_segmentation(segmented, kernel_size, morphology_operations):
     _, binary = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
 
-    # Perform morphology operations based on the provided value
     processed = binary
     if morphology_operations == 1:
-        # Open operation
         processed = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=2)
     elif morphology_operations == 2:
-        # Close operation
         processed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=2)
     elif morphology_operations == 3:
-        # Erosion followed by dilation (open)
         processed = cv2.erode(binary, kernel, iterations=2)
         processed = cv2.dilate(processed, kernel, iterations=2)
     elif morphology_operations == 4:
-        # Dilation followed by erosion (close)
         processed = cv2.dilate(binary, kernel, iterations=2)
         processed = cv2.erode(processed, kernel, iterations=2)
     elif morphology_operations == 5:
-        # Combination of open and close
         processed = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=2)
         processed = cv2.morphologyEx(processed, cv2.MORPH_CLOSE, kernel, iterations=2)
 
@@ -245,9 +230,7 @@ def postprocess_segmentation(segmented, kernel_size, morphology_operations):
 def exclude_shadows(image, mask):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     v_channel = hsv[:, :, 2]
-    # Apply a threshold to the V (brightness) channel to identify dark regions (potential shadows)
     _, shadow_mask = cv2.threshold(v_channel, 50, 255, cv2.THRESH_BINARY)
-    # Combine shadow mask with the given segmentation mask
     refined_mask = cv2.bitwise_and(mask, shadow_mask)
     return refined_mask
 
