@@ -215,20 +215,17 @@ def postprocess_segmentation(segmented_img, kernel_size, morphology_operations):
     gray = cv2.cvtColor(segmented_img, cv2.COLOR_BGR2GRAY) if segmented_img.ndim == 3 else segmented_img
     _, binary = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+
     morph_ops = [
-        cv2.MORPH_OPEN, 
-        cv2.MORPH_CLOSE, 
+        lambda img: cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel),
+        lambda img: cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel),
         lambda img: cv2.dilate(cv2.erode(img, kernel, iterations=2), kernel, iterations=2),
         lambda img: cv2.erode(cv2.dilate(img, kernel, iterations=2), kernel, iterations=2),
         lambda img: cv2.morphologyEx(cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel, iterations=2), cv2.MORPH_CLOSE, kernel, iterations=2)
     ]
+
     processed = morph_ops[min(morphology_operations - 1, len(morph_ops) - 1)](binary)
     return cv2.bitwise_and(segmented_img, segmented_img, mask=processed)
-
-def exclude_shadows(image, mask):
-    v_channel = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)[:, :, 2]
-    _, shadow_mask = cv2.threshold(v_channel, 50, 255, cv2.THRESH_BINARY)
-    return cv2.bitwise_and(mask, shadow_mask)
 
 if __name__ == '__main__':
     main()
