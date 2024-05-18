@@ -101,10 +101,14 @@ def setup_controls(frames, control_vars, randomize_vars, update_function, image_
                 scale_widget.grid(row=row_index, column=1)
                 scale_widget.bind("<ButtonRelease-1>", lambda event, var_name=var_name: update_processing(control_vars, image_labels, image, randomize_vars))
             elif widget == OptionMenu:
-                option_menu = OptionMenu(frame, control_vars['control_vars'][var_name], *kwargs['options'])
+                option_menu = OptionMenu(frame, control_vars['control_vars'][var_name], *kwargs['options'], command=lambda value, var_name=var_name: on_option_select(var_name, value, control_vars, image_labels, image, randomize_vars))
                 option_menu.grid(row=row_index, column=1)
             Checkbutton(frame, text="Randomize", variable=randomize_vars[var_name]).grid(row=row_index, column=2)
         Button(frame, text="Randomize Section", command=lambda fr=section: set_random_values(control_vars, randomize_vars, lambda: update_processing(control_vars, image_labels, image, randomize_vars), fr)).grid(row=len(controls), column=0, columnspan=3)
+
+def on_option_select(var_name, value, control_vars, image_labels, image, randomize_vars):
+    control_vars['control_vars'][var_name].set(value)
+    update_processing(control_vars, image_labels, image, randomize_vars)
 
 def set_random_values(control_vars, randomize_vars, update_function, section=None):
     triggered = False
@@ -121,13 +125,14 @@ def set_random_values(control_vars, randomize_vars, update_function, section=Non
     if triggered:
         update_function()
 
-def update_processing(control_vars, image_labels, image, randomize_vars):
+def update_processing(control_vars, image_labels, original_image, randomize_vars):
+    image = original_image.copy()
     noisy_img = add_noise(image, control_vars['control_vars']['noise_type'].get(), control_vars['control_vars']['noise_intensity'].get())
     preprocessed_img = preprocess(noisy_img, control_vars['control_vars']['contrast_clip_limit'].get(), control_vars['control_vars']['color_channel'].get())
     segmented_img = segment_vehicles(preprocessed_img, control_vars['control_vars']['segmentation_area_ratio'].get(), (control_vars['control_vars']['min_aspect_ratio'].get(), control_vars['control_vars']['max_aspect_ratio'].get()), control_vars['control_vars']['min_solidity'].get())
     postprocessed_img = postprocess_segmentation(segmented_img, control_vars['control_vars']['postprocess_kernel_size'].get(), control_vars['control_vars']['morphology_operations'].get())
 
-    display_images([image, noisy_img, preprocessed_img, segmented_img, postprocessed_img], image_labels)
+    display_images([original_image, noisy_img, preprocessed_img, segmented_img, postprocessed_img], image_labels)
 
 def display_images(images, image_labels):
     max_width, max_height = 800, 600
@@ -165,9 +170,12 @@ def add_salt_pepper_noise(image, intensity):
     num_salt = int(amount * s_vs_p)
     num_pepper = int(amount * (1 - s_vs_p))
 
-    coords = lambda n: (np.random.randint(0, i - 1, n) for i in image.shape)
-    image[coords(num_salt)] = 255
-    image[coords(num_pepper)] = 0
+    coords_salt = (np.random.randint(0, row, num_salt), np.random.randint(0, col, num_salt), np.random.randint(0, ch, num_salt))
+    image[coords_salt] = 255
+
+    coords_pepper = (np.random.randint(0, row, num_pepper), np.random.randint(0, col, num_pepper), np.random.randint(0, ch, num_pepper))
+    image[coords_pepper] = 0
+
     return image
 
 def preprocess(image, clip_limit, color_channel):
