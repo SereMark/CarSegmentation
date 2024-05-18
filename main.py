@@ -18,7 +18,7 @@ def main():
         return
 
     control_vars = initialize_control_vars()
-    randomize_vars = {var: tk.BooleanVar(value=False) for var in control_vars['control_vars']}
+    randomize_vars = {var: tk.BooleanVar(value=True) for var in control_vars['control_vars']}
     image_labels = setup_gui(root, control_vars, randomize_vars, image)
     update_processing(control_vars, image_labels, image, randomize_vars)
     root.mainloop()
