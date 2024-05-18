@@ -35,9 +35,11 @@ def initialize_control_vars():
         ],
         'segmentation_controls': [
             ("Segmentation Area Ratio", Scale, 'segmentation_area_ratio', {'from_': 0.001, 'to': 0.02, 'resolution': 0.001}),
+            ("Max Area Ratio", Scale, 'max_area_ratio', {'from_': 0.05, 'to': 0.5, 'resolution': 0.01}),
             ("Minimum Aspect Ratio", Scale, 'min_aspect_ratio', {'from_': 0.1, 'to': 1.0, 'resolution': 0.1}),
             ("Maximum Aspect Ratio", Scale, 'max_aspect_ratio', {'from_': 1.0, 'to': 10.0, 'resolution': 0.1}),
-            ("Minimum Solidity", Scale, 'min_solidity', {'from_': 0.1, 'to': 1.0, 'resolution': 0.1})
+            ("Minimum Solidity", Scale, 'min_solidity', {'from_': 0.1, 'to': 1.0, 'resolution': 0.1}),
+            ("Vertex Count Threshold", Scale, 'vertex_threshold', {'from_': 4, 'to': 20, 'resolution': 1})
         ],
         'postprocessing_controls': [
             ("Postprocessing Kernel Size", Scale, 'postprocess_kernel_size', {'from_': 3, 'to': 10, 'resolution': 1}),
@@ -50,10 +52,12 @@ def initialize_control_vars():
             'noise_intensity': tk.DoubleVar(value=0.0),
             'contrast_clip_limit': tk.DoubleVar(value=1.0),
             'color_channel': tk.StringVar(value='HSV'),
+            'max_area_ratio': tk.DoubleVar(value=0.5),
             'segmentation_area_ratio': tk.DoubleVar(value=0.001),
             'min_aspect_ratio': tk.DoubleVar(value=0.1),
             'max_aspect_ratio': tk.DoubleVar(value=10.0),
             'min_solidity': tk.DoubleVar(value=0.1),
+            'vertex_threshold': tk.IntVar(value=12),
             'postprocess_kernel_size': tk.IntVar(value=3),
             'morphology_operations': tk.IntVar(value=5)
         },
@@ -126,10 +130,14 @@ def set_random_values(control_vars, randomize_vars, update_function, section=Non
         update_function()
 
 def update_processing(control_vars, image_labels, original_image, randomize_vars):
-    image = original_image.copy()
+    image = original_image.copy()    
     noisy_img = add_noise(image, control_vars['control_vars']['noise_type'].get(), control_vars['control_vars']['noise_intensity'].get())
     preprocessed_img = preprocess(noisy_img, control_vars['control_vars']['contrast_clip_limit'].get(), control_vars['control_vars']['color_channel'].get())
-    segmented_img = segment_vehicles(preprocessed_img, control_vars['control_vars']['segmentation_area_ratio'].get(), (control_vars['control_vars']['min_aspect_ratio'].get(), control_vars['control_vars']['max_aspect_ratio'].get()), control_vars['control_vars']['min_solidity'].get())
+    segmented_img = segment_vehicles(preprocessed_img, control_vars['control_vars']['segmentation_area_ratio'].get(), 
+                                     (control_vars['control_vars']['min_aspect_ratio'].get(), control_vars['control_vars']['max_aspect_ratio'].get()), 
+                                     control_vars['control_vars']['min_solidity'].get(), 
+                                     control_vars['control_vars']['max_area_ratio'].get(), 
+                                     control_vars['control_vars']['vertex_threshold'].get())
     postprocessed_img = postprocess_segmentation(segmented_img, control_vars['control_vars']['postprocess_kernel_size'].get(), control_vars['control_vars']['morphology_operations'].get())
 
     display_images([original_image, noisy_img, preprocessed_img, segmented_img, postprocessed_img], image_labels)
@@ -195,21 +203,35 @@ def preprocess(image, clip_limit, color_channel):
     _, binary_img = cv2.threshold(cv2.cvtColor(filtered_img, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return binary_img
 
-def segment_vehicles(preprocessed_img, min_area_ratio, aspect_ratio_range, min_solidity):
+def segment_vehicles(preprocessed_img, min_area_ratio, aspect_ratio_range, min_solidity, max_area_ratio, vertex_threshold):
     contours, _ = cv2.findContours(preprocessed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     min_area = preprocessed_img.shape[0] * preprocessed_img.shape[1] * min_area_ratio
+    max_area = preprocessed_img.shape[0] * preprocessed_img.shape[1] * max_area_ratio
+
     mask = np.zeros(preprocessed_img.shape, dtype=np.uint8)
     
     for contour in contours:
-        if cv2.contourArea(contour) < min_area:
+        area = cv2.contourArea(contour)
+        if area < min_area or area > max_area:
             continue
         x, y, w, h = cv2.boundingRect(contour)
         aspect_ratio = w / h
-        hull_area = cv2.contourArea(cv2.convexHull(contour))
-        solidity = cv2.contourArea(contour) / hull_area if hull_area > 0 else 0
-        if aspect_ratio_range[0] <= aspect_ratio <= aspect_ratio_range[1] and solidity > min_solidity:
+        hull = cv2.convexHull(contour)
+        hull_area = cv2.contourArea(hull)
+        solidity = area / hull_area if hull_area > 0 else 0
+
+        if (aspect_ratio_range[0] <= aspect_ratio <= aspect_ratio_range[1] and
+            solidity > min_solidity and
+            is_vehicle_shape(contour, hull, vertex_threshold)):
             cv2.drawContours(mask, [contour], -1, 255, -1)
+    
     return mask
+
+def is_vehicle_shape(contour, hull, vertex_threshold):
+    if not cv2.isContourConvex(hull):
+        return False
+    approx = cv2.approxPolyDP(contour, 0.02 * cv2.arcLength(contour, True), True)
+    return len(approx) <= vertex_threshold
 
 def postprocess_segmentation(segmented_img, kernel_size, morphology_operations):
     gray = cv2.cvtColor(segmented_img, cv2.COLOR_BGR2GRAY) if segmented_img.ndim == 3 else segmented_img
