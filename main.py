@@ -12,11 +12,6 @@ def main():
     root.geometry('1200x800')
     image_path = "images/HrpktkpTURBXy83YWViODRjNThkMjExZWQ5ZTRjNzFkOWQxYTM4ZTAyZi5qcGeSlQMABc0S5M0KoJUCzQOlAMLD.jpg"
     image = cv2.imread(image_path)
-
-    if image is None:
-        print("Error loading image.")
-        return
-
     control_vars = initialize_control_vars()
     randomize_vars = {var: tk.BooleanVar(value=True) for var in control_vars['control_vars']}
     image_labels = setup_gui(root, control_vars, randomize_vars, image)
@@ -171,11 +166,8 @@ def display_images(images, image_labels):
             new_size = (int(width * scaling_factor), int(height * scaling_factor))
             img = cv2.resize(img, new_size, interpolation=cv2.INTER_AREA)
             img_pil = ImageTk.PhotoImage(image=Image.fromarray(img))
-            if idx < len(image_labels):
-                image_labels[idx].configure(image=img_pil)
-                image_labels[idx].image = img_pil
-            else:
-                print(f"Warning: More images ({len(images)}) than labels ({len(image_labels)}) provided.")
+            image_labels[idx].configure(image=img_pil)
+            image_labels[idx].image = img_pil
         
 def add_noise(image, noise_type='gaussian', intensity=0.1):
     noise_funcs = {
