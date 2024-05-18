@@ -10,7 +10,7 @@ def main():
     root = tk.Tk()
     root.title("Vehicle Segmentation Application")
     root.geometry('1200x800')
-    image_path = "images/autopalya-2-1024x576.jpg"
+    image_path = "images/HrpktkpTURBXy83YWViODRjNThkMjExZWQ5ZTRjNzFkOWQxYTM4ZTAyZi5qcGeSlQMABc0S5M0KoJUCzQOlAMLD.jpg"
     image = cv2.imread(image_path)
 
     if image is None:
@@ -26,40 +26,40 @@ def main():
 def initialize_control_vars():
     controls = {
         'noise_controls': [
-            ("Noise Intensity", Scale, 'noise_intensity', {'from_': 0, 'to': 0.5, 'resolution': 0.01}),
+            ("Noise Intensity", Scale, 'noise_intensity', {'from_': 0, 'to': 0.2, 'resolution': 0.01}),
             ("Noise Type", OptionMenu, 'noise_type', {'options': ['gaussian', 'salt_pepper']})
         ],
         'preprocessing_controls': [
-            ("Contrast Clip Limit", Scale, 'contrast_clip_limit', {'from_': 1.0, 'to': 5.0, 'resolution': 0.1}),
+            ("Contrast Clip Limit", Scale, 'contrast_clip_limit', {'from_': 2.0, 'to': 4.0, 'resolution': 0.1}),
             ("Color Channel", OptionMenu, 'color_channel', {'options': ['BGR', 'HSV', 'YCrCb']})
         ],
         'segmentation_controls': [
-            ("Segmentation Area Ratio", Scale, 'segmentation_area_ratio', {'from_': 0.001, 'to': 0.02, 'resolution': 0.001}),
-            ("Max Area Ratio", Scale, 'max_area_ratio', {'from_': 0.05, 'to': 0.5, 'resolution': 0.01}),
-            ("Minimum Aspect Ratio", Scale, 'min_aspect_ratio', {'from_': 0.1, 'to': 1.0, 'resolution': 0.1}),
-            ("Maximum Aspect Ratio", Scale, 'max_aspect_ratio', {'from_': 1.0, 'to': 10.0, 'resolution': 0.1}),
-            ("Minimum Solidity", Scale, 'min_solidity', {'from_': 0.1, 'to': 1.0, 'resolution': 0.1}),
-            ("Vertex Count Threshold", Scale, 'vertex_threshold', {'from_': 4, 'to': 20, 'resolution': 1})
+            ("Segmentation Area Ratio", Scale, 'segmentation_area_ratio', {'from_': 0.001, 'to': 0.01, 'resolution': 0.001}),
+            ("Max Area Ratio", Scale, 'max_area_ratio', {'from_': 0.1, 'to': 0.4, 'resolution': 0.01}),
+            ("Minimum Aspect Ratio", Scale, 'min_aspect_ratio', {'from_': 0.3, 'to': 1.0, 'resolution': 0.1}),
+            ("Maximum Aspect Ratio", Scale, 'max_aspect_ratio', {'from_': 1.0, 'to': 5.0, 'resolution': 0.1}),
+            ("Minimum Solidity", Scale, 'min_solidity', {'from_': 0.5, 'to': 1.0, 'resolution': 0.1}),
+            ("Vertex Count Threshold", Scale, 'vertex_threshold', {'from_': 4, 'to': 15, 'resolution': 1})
         ],
         'postprocessing_controls': [
-            ("Postprocessing Kernel Size", Scale, 'postprocess_kernel_size', {'from_': 3, 'to': 10, 'resolution': 1}),
+            ("Postprocessing Kernel Size", Scale, 'postprocess_kernel_size', {'from_': 3, 'to': 7, 'resolution': 1}),
             ("Morphology Operations", Scale, 'morphology_operations', {'from_': 1, 'to': 5, 'resolution': 1})
         ]
     }
     return {
         'control_vars': {
             'noise_type': tk.StringVar(value='gaussian'),
-            'noise_intensity': tk.DoubleVar(value=0.0),
-            'contrast_clip_limit': tk.DoubleVar(value=1.0),
+            'noise_intensity': tk.DoubleVar(value=0.05),
+            'contrast_clip_limit': tk.DoubleVar(value=2.5),
             'color_channel': tk.StringVar(value='HSV'),
-            'max_area_ratio': tk.DoubleVar(value=0.5),
-            'segmentation_area_ratio': tk.DoubleVar(value=0.001),
-            'min_aspect_ratio': tk.DoubleVar(value=0.1),
-            'max_aspect_ratio': tk.DoubleVar(value=10.0),
-            'min_solidity': tk.DoubleVar(value=0.1),
-            'vertex_threshold': tk.IntVar(value=12),
-            'postprocess_kernel_size': tk.IntVar(value=3),
-            'morphology_operations': tk.IntVar(value=5)
+            'max_area_ratio': tk.DoubleVar(value=0.3),
+            'segmentation_area_ratio': tk.DoubleVar(value=0.005),
+            'min_aspect_ratio': tk.DoubleVar(value=0.5),
+            'max_aspect_ratio': tk.DoubleVar(value=3.0),
+            'min_solidity': tk.DoubleVar(value=0.6),
+            'vertex_threshold': tk.IntVar(value=10),
+            'postprocess_kernel_size': tk.IntVar(value=5),
+            'morphology_operations': tk.IntVar(value=2)
         },
         'controls': controls
     }
@@ -74,15 +74,34 @@ def setup_gui(root, control_vars, randomize_vars, image):
 
     image_frame_top, image_frame_bottom = Frame(root, bd=2, relief='sunken'), Frame(root, bd=2, relief='sunken')
     image_frame_top.grid(row=1, column=0, columnspan=4, sticky='nsew', padx=5, pady=5)
-    image_frame_bottom.grid(row=2, column=0, columnspan=4, sticky='nsew', padx=5, pady=5)
+    image_frame_bottom.grid(row=3, column=0, columnspan=4, sticky='nsew', padx=5, pady=5)
     root.grid_rowconfigure(1, weight=1)
-    root.grid_rowconfigure(2, weight=1)
+    root.grid_rowconfigure(2, weight=0)
+    root.grid_rowconfigure(3, weight=1)
     root.grid_columnconfigure(0, weight=1)
 
-    image_labels_top = [Label(image_frame_top) for _ in range(3)]
-    image_labels_bottom = [Label(image_frame_bottom) for _ in range(2)]
-    for img_label in image_labels_top + image_labels_bottom:
-        img_label.pack(side='left', expand=True, fill='both')
+    titles_top = ["Original", "Noisy", "Preprocessed"]
+    titles_bottom = ["Segmented", "Postprocessed"]
+    for idx, title in enumerate(titles_top):
+        label = Label(image_frame_top, text=title)
+        label.grid(row=0, column=idx)
+    for idx, title in enumerate(titles_bottom):
+        label = Label(image_frame_bottom, text=title)
+        label.grid(row=0, column=idx)
+
+    image_labels_top = [
+        Label(image_frame_top),
+        Label(image_frame_top),
+        Label(image_frame_top)
+    ]
+    image_labels_bottom = [
+        Label(image_frame_bottom),
+        Label(image_frame_bottom)
+    ]
+    for idx, img_label in enumerate(image_labels_top):
+        img_label.grid(row=1, column=idx, sticky='nsew')
+    for idx, img_label in enumerate(image_labels_bottom):
+        img_label.grid(row=1, column=idx, sticky='nsew')
 
     image_labels = image_labels_top + image_labels_bottom
     setup_controls(frames, control_vars, randomize_vars, lambda: update_processing(control_vars, image_labels, image, randomize_vars), image_labels, image)
