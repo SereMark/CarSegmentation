@@ -2,10 +2,9 @@ import random
 import tkinter as tk
 from tkinter import Label, Scale, OptionMenu, Frame, Button, Checkbutton
 import cv2
+import numpy as np
 from PIL import Image, ImageTk
 from random import uniform
-
-import numpy as np
 
 def main():
     root = tk.Tk()
@@ -22,7 +21,6 @@ def main():
     randomize_vars = {var: tk.BooleanVar(value=False) for var in control_vars['control_vars']}
     image_labels = setup_gui(root, control_vars, randomize_vars, image)
     update_processing(control_vars, image_labels, image, randomize_vars)
-
     root.mainloop()
 
 def initialize_control_vars():
@@ -32,7 +30,6 @@ def initialize_control_vars():
             ("Noise Type", OptionMenu, 'noise_type', {'options': ['gaussian', 'salt_pepper']})
         ],
         'preprocessing_controls': [
-            ("Preprocessing Threshold", Scale, 'preprocess_threshold', {'from_': 0.5, 'to': 3.0, 'resolution': 0.1}),
             ("Contrast Clip Limit", Scale, 'contrast_clip_limit', {'from_': 1.0, 'to': 5.0, 'resolution': 0.1}),
             ("Color Channel", OptionMenu, 'color_channel', {'options': ['BGR', 'HSV', 'YCrCb']})
         ],
@@ -50,8 +47,7 @@ def initialize_control_vars():
     return {
         'control_vars': {
             'noise_type': tk.StringVar(value='gaussian'),
-            'noise_intensity': tk.DoubleVar(value=0.00),
-            'preprocess_threshold': tk.DoubleVar(value=0.5),
+            'noise_intensity': tk.DoubleVar(value=0.0),
             'contrast_clip_limit': tk.DoubleVar(value=1.0),
             'color_channel': tk.StringVar(value='HSV'),
             'segmentation_area_ratio': tk.DoubleVar(value=0.001),
@@ -75,19 +71,16 @@ def setup_gui(root, control_vars, randomize_vars, image):
     image_frame_top, image_frame_bottom = Frame(root, bd=2, relief='sunken'), Frame(root, bd=2, relief='sunken')
     image_frame_top.grid(row=1, column=0, columnspan=4, sticky='nsew', padx=5, pady=5)
     image_frame_bottom.grid(row=2, column=0, columnspan=4, sticky='nsew', padx=5, pady=5)
-
     root.grid_rowconfigure(1, weight=1)
     root.grid_rowconfigure(2, weight=1)
     root.grid_columnconfigure(0, weight=1)
 
     image_labels_top = [Label(image_frame_top) for _ in range(3)]
     image_labels_bottom = [Label(image_frame_bottom) for _ in range(2)]
-
     for img_label in image_labels_top + image_labels_bottom:
         img_label.pack(side='left', expand=True, fill='both')
 
     image_labels = image_labels_top + image_labels_bottom
-
     setup_controls(frames, control_vars, randomize_vars, lambda: update_processing(control_vars, image_labels, image, randomize_vars), image_labels, image)
     return image_labels
 
@@ -130,7 +123,7 @@ def set_random_values(control_vars, randomize_vars, update_function, section=Non
 
 def update_processing(control_vars, image_labels, image, randomize_vars):
     noisy_img = add_noise(image, control_vars['control_vars']['noise_type'].get(), control_vars['control_vars']['noise_intensity'].get())
-    preprocessed_img = preprocess(noisy_img, control_vars['control_vars']['preprocess_threshold'].get(), control_vars['control_vars']['contrast_clip_limit'].get(), control_vars['control_vars']['color_channel'].get())
+    preprocessed_img = preprocess(noisy_img, control_vars['control_vars']['contrast_clip_limit'].get(), control_vars['control_vars']['color_channel'].get())
     segmented_img = segment_vehicles(preprocessed_img, control_vars['control_vars']['segmentation_area_ratio'].get(), (control_vars['control_vars']['min_aspect_ratio'].get(), control_vars['control_vars']['max_aspect_ratio'].get()), control_vars['control_vars']['min_solidity'].get())
     postprocessed_img = postprocess_segmentation(segmented_img, control_vars['control_vars']['postprocess_kernel_size'].get(), control_vars['control_vars']['morphology_operations'].get())
 
@@ -160,102 +153,74 @@ def add_noise(image, noise_type='gaussian', intensity=0.1):
     return noise_funcs[noise_type](image)
 
 def add_gaussian_noise(image, intensity):
-    row, col, ch = image.shape
-    mean = 0
-    sigma = intensity * 255
-    gauss_noise = np.random.normal(mean, sigma, (row, col, ch)).astype(np.float32)
-    return np.clip(image + gauss_noise, 0, 255).astype(np.uint8)
+    mean, sigma = 0, intensity * 255
+    gauss_noise = np.random.normal(mean, sigma, image.shape).astype(np.float32)
+    noisy_image = np.clip(image + gauss_noise, 0, 255).astype(np.uint8)
+    return noisy_image
 
 def add_salt_pepper_noise(image, intensity):
     row, col, ch = image.shape
     s_vs_p = 0.5
-    num_salt = int(row * col * ch * intensity * s_vs_p)
-    num_pepper = int(row * col * ch * intensity * (1 - s_vs_p))
+    amount = row * col * ch * intensity
+    num_salt = int(amount * s_vs_p)
+    num_pepper = int(amount * (1 - s_vs_p))
 
-    salt_coords = (np.random.randint(0, row, num_salt), np.random.randint(0, col, num_salt), np.random.randint(0, ch, num_salt))
-    pepper_coords = (np.random.randint(0, row, num_pepper), np.random.randint(0, col, num_pepper), np.random.randint(0, ch, num_pepper))
+    coords = lambda n: (np.random.randint(0, i - 1, n) for i in image.shape)
+    image[coords(num_salt)] = 255
+    image[coords(num_pepper)] = 0
+    return image
 
-    out_image = image.copy()
-    out_image[salt_coords] = 255
-    out_image[pepper_coords] = 0
-    return out_image
-
-def preprocess(image, threshold, clip_limit, color_channel):
+def preprocess(image, clip_limit, color_channel):
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
-    if color_channel == 'HSV':
-        hsv_img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        hsv_img[:, :, 2] = clahe.apply(hsv_img[:, :, 2])
-        processed_img = cv2.cvtColor(hsv_img, cv2.COLOR_HSV2BGR)
-    elif color_channel == 'YCrCb':
-        ycrcb_img = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
-        ycrcb_img[:, :, 0] = clahe.apply(ycrcb_img[:, :, 0])
-        processed_img = cv2.cvtColor(ycrcb_img, cv2.COLOR_YCrCb2BGR)
+    channel_map = {
+        'HSV': 2,
+        'YCrCb': 0
+    }
+    if color_channel in channel_map:
+        image = cv2.cvtColor(image, getattr(cv2, f'COLOR_BGR2{color_channel}'))
+        image[:, :, channel_map[color_channel]] = clahe.apply(image[:, :, channel_map[color_channel]])
+        processed_img = cv2.cvtColor(image, getattr(cv2, f'COLOR_{color_channel}2BGR'))
     else:
-        processed_img = image.copy()
-        for i in range(3):
-            processed_img[:, :, i] = clahe.apply(image[:, :, i])
+        processed_img = np.stack([clahe.apply(image[:, :, i]) for i in range(3)], axis=-1)
 
     filtered_img = cv2.bilateralFilter(processed_img, 9, 75, 75)
-    gray_img = cv2.cvtColor(filtered_img, cv2.COLOR_BGR2GRAY)
-    _, binary_img = cv2.threshold(gray_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    _, binary_img = cv2.threshold(cv2.cvtColor(filtered_img, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return binary_img
 
 def segment_vehicles(preprocessed_img, min_area_ratio, aspect_ratio_range, min_solidity):
-    if preprocessed_img.ndim != 2:
-        raise ValueError("Preprocessed image must be a single-channel binary image.")
-
     contours, _ = cv2.findContours(preprocessed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     min_area = preprocessed_img.shape[0] * preprocessed_img.shape[1] * min_area_ratio
-
     mask = np.zeros(preprocessed_img.shape, dtype=np.uint8)
+    
     for contour in contours:
-        area = cv2.contourArea(contour)
-        if area < min_area:
+        if cv2.contourArea(contour) < min_area:
             continue
-
         x, y, w, h = cv2.boundingRect(contour)
         aspect_ratio = w / h
-        hull = cv2.convexHull(contour)
-        hull_area = cv2.contourArea(hull)
-        solidity = area / hull_area if hull_area > 0 else 0
-
+        hull_area = cv2.contourArea(cv2.convexHull(contour))
+        solidity = cv2.contourArea(contour) / hull_area if hull_area > 0 else 0
         if aspect_ratio_range[0] <= aspect_ratio <= aspect_ratio_range[1] and solidity > min_solidity:
             cv2.drawContours(mask, [contour], -1, 255, -1)
-
     return mask
 
 def postprocess_segmentation(segmented_img, kernel_size, morphology_operations):
-    if segmented_img.ndim == 3 and segmented_img.shape[2] == 3:
-        gray = cv2.cvtColor(segmented_img, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = segmented_img
-
+    gray = cv2.cvtColor(segmented_img, cv2.COLOR_BGR2GRAY) if segmented_img.ndim == 3 else segmented_img
     _, binary = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
-
-    processed = binary
-    if morphology_operations == 1:
-        processed = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=2)
-    elif morphology_operations == 2:
-        processed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel, iterations=2)
-    elif morphology_operations == 3:
-        processed = cv2.erode(binary, kernel, iterations=2)
-        processed = cv2.dilate(processed, kernel, iterations=2)
-    elif morphology_operations == 4:
-        processed = cv2.dilate(binary, kernel, iterations=2)
-        processed = cv2.erode(processed, kernel, iterations=2)
-    elif morphology_operations == 5:
-        processed = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel, iterations=2)
-        processed = cv2.morphologyEx(processed, cv2.MORPH_CLOSE, kernel, iterations=2)
-
+    morph_ops = [
+        cv2.MORPH_OPEN, 
+        cv2.MORPH_CLOSE, 
+        lambda img: cv2.dilate(cv2.erode(img, kernel, iterations=2), kernel, iterations=2),
+        lambda img: cv2.erode(cv2.dilate(img, kernel, iterations=2), kernel, iterations=2),
+        lambda img: cv2.morphologyEx(cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel, iterations=2), cv2.MORPH_CLOSE, kernel, iterations=2)
+    ]
+    processed = morph_ops[min(morphology_operations - 1, len(morph_ops) - 1)](binary)
     return cv2.bitwise_and(segmented_img, segmented_img, mask=processed)
 
 def exclude_shadows(image, mask):
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    v_channel = hsv[:, :, 2]
+    v_channel = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)[:, :, 2]
     _, shadow_mask = cv2.threshold(v_channel, 50, 255, cv2.THRESH_BINARY)
-    refined_mask = cv2.bitwise_and(mask, shadow_mask)
-    return refined_mask
+    return cv2.bitwise_and(mask, shadow_mask)
 
 if __name__ == '__main__':
     main()
