@@ -1,8 +1,10 @@
+import random
 import tkinter as tk
 from tkinter import Label, Scale, OptionMenu, Frame, Button, Checkbutton
 import cv2
 from PIL import Image, ImageTk
 from random import uniform
+
 import numpy as np
 
 def main():
@@ -12,94 +14,144 @@ def main():
     image_path = "images/autopalya-2-1024x576.jpg"
     image = cv2.imread(image_path)
 
+    if image is None:
+        print("Error loading image.")
+        return
+
     control_vars = initialize_control_vars()
-    randomize_vars = {var: tk.BooleanVar(value=True) for var in control_vars if var not in {'controls', 'noise_type', 'color_channel'}}
+    randomize_vars = {var: tk.BooleanVar(value=False) for var in control_vars['control_vars']}
     image_labels = setup_gui(root, control_vars, randomize_vars, image)
     update_processing(control_vars, image_labels, image, randomize_vars)
 
     root.mainloop()
 
 def initialize_control_vars():
-    controls = [
-        ("Noise Intensity", Scale, 'noise_intensity', {'from_': 0, 'to': 0.5, 'resolution': 0.01}),
-        ("Preprocessing Threshold", Scale, 'preprocess_threshold', {'from_': 0.5, 'to': 3.0, 'resolution': 0.1}),
-        ("Contrast Clip Limit", Scale, 'contrast_clip_limit', {'from_': 1.0, 'to': 5.0, 'resolution': 0.1}),
-        ("Segmentation Area Ratio", Scale, 'segmentation_area_ratio', {'from_': 0.001, 'to': 0.02, 'resolution': 0.001}),
-        ("Minimum Aspect Ratio", Scale, 'min_aspect_ratio', {'from_': 0.1, 'to': 1.0, 'resolution': 0.1}),
-        ("Maximum Aspect Ratio", Scale, 'max_aspect_ratio', {'from_': 1.0, 'to': 10.0, 'resolution': 0.1}),
-        ("Minimum Solidity", Scale, 'min_solidity', {'from_': 0.1, 'to': 1.0, 'resolution': 0.1}),
-        ("Postprocessing Kernel Size", Scale, 'postprocess_kernel_size', {'from_': 3, 'to': 10, 'resolution': 1}),
-        ("Morphology Operations", Scale, 'morphology_operations', {'from_': 1, 'to': 5, 'resolution': 1})
-    ]
+    controls = {
+        'noise_controls': [
+            ("Noise Intensity", Scale, 'noise_intensity', {'from_': 0, 'to': 0.5, 'resolution': 0.01}),
+            ("Noise Type", OptionMenu, 'noise_type', {'options': ['gaussian', 'salt_pepper']})
+        ],
+        'preprocessing_controls': [
+            ("Preprocessing Threshold", Scale, 'preprocess_threshold', {'from_': 0.5, 'to': 3.0, 'resolution': 0.1}),
+            ("Contrast Clip Limit", Scale, 'contrast_clip_limit', {'from_': 1.0, 'to': 5.0, 'resolution': 0.1}),
+            ("Color Channel", OptionMenu, 'color_channel', {'options': ['BGR', 'HSV', 'YCrCb']})
+        ],
+        'segmentation_controls': [
+            ("Segmentation Area Ratio", Scale, 'segmentation_area_ratio', {'from_': 0.001, 'to': 0.02, 'resolution': 0.001}),
+            ("Minimum Aspect Ratio", Scale, 'min_aspect_ratio', {'from_': 0.1, 'to': 1.0, 'resolution': 0.1}),
+            ("Maximum Aspect Ratio", Scale, 'max_aspect_ratio', {'from_': 1.0, 'to': 10.0, 'resolution': 0.1}),
+            ("Minimum Solidity", Scale, 'min_solidity', {'from_': 0.1, 'to': 1.0, 'resolution': 0.1})
+        ],
+        'postprocessing_controls': [
+            ("Postprocessing Kernel Size", Scale, 'postprocess_kernel_size', {'from_': 3, 'to': 10, 'resolution': 1}),
+            ("Morphology Operations", Scale, 'morphology_operations', {'from_': 1, 'to': 5, 'resolution': 1})
+        ]
+    }
     return {
-        'noise_type': tk.StringVar(value='gaussian'),
-        'noise_intensity': tk.DoubleVar(value=0.02),
-        'preprocess_threshold': tk.DoubleVar(value=1.5),
-        'contrast_clip_limit': tk.DoubleVar(value=3.0),
-        'color_channel': tk.StringVar(value='HSV'),
-        'segmentation_area_ratio': tk.DoubleVar(value=0.01),
-        'min_aspect_ratio': tk.DoubleVar(value=0.75),
-        'max_aspect_ratio': tk.DoubleVar(value=4.0),
-        'min_solidity': tk.DoubleVar(value=0.3),
-        'postprocess_kernel_size': tk.IntVar(value=5),
-        'morphology_operations': tk.IntVar(value=5),
+        'control_vars': {
+            'noise_type': tk.StringVar(value='gaussian'),
+            'noise_intensity': tk.DoubleVar(value=0.00),
+            'preprocess_threshold': tk.DoubleVar(value=0.5),
+            'contrast_clip_limit': tk.DoubleVar(value=1.0),
+            'color_channel': tk.StringVar(value='HSV'),
+            'segmentation_area_ratio': tk.DoubleVar(value=0.001),
+            'min_aspect_ratio': tk.DoubleVar(value=0.1),
+            'max_aspect_ratio': tk.DoubleVar(value=10.0),
+            'min_solidity': tk.DoubleVar(value=0.1),
+            'postprocess_kernel_size': tk.IntVar(value=3),
+            'morphology_operations': tk.IntVar(value=5)
+        },
         'controls': controls
     }
 
 def setup_gui(root, control_vars, randomize_vars, image):
-    image_frame_top = Frame(root)
-    image_frame_top.grid(row=0, column=0, columnspan=3, sticky='nsew', padx=5, pady=5)
-    image_frame_bottom = Frame(root)
-    image_frame_bottom.grid(row=1, column=0, columnspan=2, sticky='nsew', padx=5, pady=5)
-    control_frame = Frame(root)
-    control_frame.grid(row=1, column=2, sticky='nsew', padx=5, pady=5)
+    control_frame = Frame(root, bd=2, relief='sunken')
+    control_frame.grid(row=0, column=0, columnspan=4, sticky='ew')
 
-    image_labels = [Label(image_frame_top) for _ in range(3)] + [Label(image_frame_bottom) for _ in range(2)]
-    for img_label in image_labels:
-        img_label.pack(side='left', expand=True, fill='both', padx=5, pady=5)
+    frames = {key: Frame(control_frame, bd=2, relief='sunken') for key in ['noise_frame', 'preprocessing_frame', 'segmentation_frame', 'postprocessing_frame']}
+    for i, key in enumerate(frames):
+        frames[key].grid(row=0, column=i, padx=5, pady=5)
 
-    setup_controls(control_frame, control_vars, randomize_vars, lambda: update_processing(control_vars, image_labels, image, randomize_vars))
+    image_frame_top, image_frame_bottom = Frame(root, bd=2, relief='sunken'), Frame(root, bd=2, relief='sunken')
+    image_frame_top.grid(row=1, column=0, columnspan=4, sticky='nsew', padx=5, pady=5)
+    image_frame_bottom.grid(row=2, column=0, columnspan=4, sticky='nsew', padx=5, pady=5)
+
+    root.grid_rowconfigure(1, weight=1)
+    root.grid_rowconfigure(2, weight=1)
+    root.grid_columnconfigure(0, weight=1)
+
+    image_labels_top = [Label(image_frame_top) for _ in range(3)]
+    image_labels_bottom = [Label(image_frame_bottom) for _ in range(2)]
+
+    for img_label in image_labels_top + image_labels_bottom:
+        img_label.pack(side='left', expand=True, fill='both')
+
+    image_labels = image_labels_top + image_labels_bottom
+
+    setup_controls(frames, control_vars, randomize_vars, lambda: update_processing(control_vars, image_labels, image, randomize_vars), image_labels, image)
     return image_labels
 
-def setup_controls(control_frame, control_vars, randomize_vars, update_function):
-    Label(control_frame, text="Noise Type").grid(row=0, column=0, columnspan=2)
-    OptionMenu(control_frame, control_vars['noise_type'], 'gaussian', 'salt_pepper', command=lambda _: update_function()).grid(row=0, column=2, columnspan=2)
-    Label(control_frame, text="Color Channel").grid(row=1, column=0, columnspan=2)
-    OptionMenu(control_frame, control_vars['color_channel'], 'BGR', 'HSV', 'YCrCb', command=lambda _: update_function()).grid(row=1, column=2, columnspan=2)
-    
-    row_index = 2
-    for label_text, widget, var, kwargs in control_vars['controls']:
-        Label(control_frame, text=label_text).grid(row=row_index, column=0)
-        widget(control_frame, variable=control_vars[var], orient='horizontal', command=lambda _: update_function(), **kwargs).grid(row=row_index, column=1)
-        Checkbutton(control_frame, text="Randomize", variable=randomize_vars[var]).grid(row=row_index, column=2)
-        row_index += 1
-    Button(control_frame, text="Randomize All", command=lambda: set_random_values(control_vars, randomize_vars, update_function)).grid(row=row_index, column=0, columnspan=3)
+def setup_controls(frames, control_vars, randomize_vars, update_function, image_labels, image):
+    frame_keys = {
+        'noise_controls': 'noise_frame',
+        'preprocessing_controls': 'preprocessing_frame',
+        'segmentation_controls': 'segmentation_frame',
+        'postprocessing_controls': 'postprocessing_frame'
+    }
+
+    for section, controls in control_vars['controls'].items():
+        frame = frames[frame_keys[section]]
+        for row_index, (label_text, widget, var_name, kwargs) in enumerate(controls):
+            Label(frame, text=label_text).grid(row=row_index, column=0)
+            if widget == Scale:
+                scale_widget = Scale(frame, variable=control_vars['control_vars'][var_name], orient='horizontal', **kwargs)
+                scale_widget.grid(row=row_index, column=1)
+                scale_widget.bind("<ButtonRelease-1>", lambda event, var_name=var_name: update_processing(control_vars, image_labels, image, randomize_vars))
+            elif widget == OptionMenu:
+                option_menu = OptionMenu(frame, control_vars['control_vars'][var_name], *kwargs['options'])
+                option_menu.grid(row=row_index, column=1)
+            Checkbutton(frame, text="Randomize", variable=randomize_vars[var_name]).grid(row=row_index, column=2)
+        Button(frame, text="Randomize Section", command=lambda fr=section: set_random_values(control_vars, randomize_vars, lambda: update_processing(control_vars, image_labels, image, randomize_vars), fr)).grid(row=len(controls), column=0, columnspan=3)
+
+def set_random_values(control_vars, randomize_vars, update_function, section=None):
+    triggered = False
+    if section:
+        for label_text, control_type, var_name, kwargs in control_vars['controls'][section]:
+            if randomize_vars[var_name].get():
+                if control_type == OptionMenu:
+                    new_value = random.choice(kwargs['options'])
+                elif control_type == Scale:
+                    range_min, range_max = kwargs['from_'], kwargs['to']
+                    new_value = uniform(range_min, range_max)
+                control_vars['control_vars'][var_name].set(new_value)
+                triggered = True
+    if triggered:
+        update_function()
 
 def update_processing(control_vars, image_labels, image, randomize_vars):
-    noisy_img = add_noise(image, control_vars['noise_type'].get(), control_vars['noise_intensity'].get())
-    preprocessed_img = preprocess(noisy_img, control_vars['preprocess_threshold'].get(), control_vars['contrast_clip_limit'].get(), control_vars['color_channel'].get())
-    segmented_img = segment_vehicles(preprocessed_img, control_vars['segmentation_area_ratio'].get(), (control_vars['min_aspect_ratio'].get(), control_vars['max_aspect_ratio'].get()), control_vars['min_solidity'].get())
-    postprocessed_img = postprocess_segmentation(segmented_img, control_vars['postprocess_kernel_size'].get(), control_vars['morphology_operations'].get())
+    noisy_img = add_noise(image, control_vars['control_vars']['noise_type'].get(), control_vars['control_vars']['noise_intensity'].get())
+    preprocessed_img = preprocess(noisy_img, control_vars['control_vars']['preprocess_threshold'].get(), control_vars['control_vars']['contrast_clip_limit'].get(), control_vars['control_vars']['color_channel'].get())
+    segmented_img = segment_vehicles(preprocessed_img, control_vars['control_vars']['segmentation_area_ratio'].get(), (control_vars['control_vars']['min_aspect_ratio'].get(), control_vars['control_vars']['max_aspect_ratio'].get()), control_vars['control_vars']['min_solidity'].get())
+    postprocessed_img = postprocess_segmentation(segmented_img, control_vars['control_vars']['postprocess_kernel_size'].get(), control_vars['control_vars']['morphology_operations'].get())
+
     display_images([image, noisy_img, preprocessed_img, segmented_img, postprocessed_img], image_labels)
 
 def display_images(images, image_labels):
+    max_width, max_height = 800, 600
     for idx, img in enumerate(images):
-        img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB if img.ndim == 2 else cv2.COLOR_BGR2RGB)
-        new_width = 835
-        aspect_ratio = img.shape[1] / img.shape[0]
-        new_height = int(new_width / aspect_ratio)
-        img = cv2.resize(img, (new_width, new_height))
-        img_pil = ImageTk.PhotoImage(image=Image.fromarray(img))
-        img_label = image_labels[idx]
-        img_label.configure(image=img_pil)
-        img_label.image = img_pil
+        if img is not None:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB if img.ndim == 3 else cv2.COLOR_GRAY2RGB)
+            height, width = img.shape[:2]
+            scaling_factor = min(max_width / width, max_height / height)
+            new_size = (int(width * scaling_factor), int(height * scaling_factor))
+            img = cv2.resize(img, new_size, interpolation=cv2.INTER_AREA)
+            img_pil = ImageTk.PhotoImage(image=Image.fromarray(img))
+            if idx < len(image_labels):
+                image_labels[idx].configure(image=img_pil)
+                image_labels[idx].image = img_pil
+            else:
+                print(f"Warning: More images ({len(images)}) than labels ({len(image_labels)}) provided.")
         
-def set_random_values(control_vars, randomize_vars, update_function):
-    for var in randomize_vars:
-        if randomize_vars[var].get():
-            control_vars[var].set(uniform(control_vars[var]._from, control_vars[var]._to))
-    update_function()
-    
 def add_noise(image, noise_type='gaussian', intensity=0.1):
     noise_funcs = {
         'gaussian': lambda img: add_gaussian_noise(img, intensity),
