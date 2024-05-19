@@ -10,7 +10,7 @@ def main():
     root = tk.Tk()
     root.title("Vehicle Segmentation Application")
     root.geometry('1200x800')
-    image_path = "images/HrpktkpTURBXy83YWViODRjNThkMjExZWQ5ZTRjNzFkOWQxYTM4ZTAyZi5qcGeSlQMABc0S5M0KoJUCzQOlAMLD.jpg"
+    image_path = "images/motorway_446770915_1000.jpg"
     image = cv2.imread(image_path)
     control_vars = initialize_control_vars()
     randomize_vars = {var: tk.BooleanVar(value=True) for var in control_vars['control_vars']}
@@ -21,7 +21,7 @@ def main():
 def initialize_control_vars():
     controls = {
         'noise_controls': [
-            ("Noise Intensity", Scale, 'noise_intensity', {'from_': 0, 'to': 0.2, 'resolution': 0.01}),
+            ("Noise Intensity", Scale, 'noise_intensity', {'from_': 0, 'to': 0.1, 'resolution': 0.01}),
             ("Noise Type", OptionMenu, 'noise_type', {'options': ['gaussian', 'salt_pepper']})
         ],
         'preprocessing_controls': [
@@ -44,17 +44,17 @@ def initialize_control_vars():
     return {
         'control_vars': {
             'noise_type': tk.StringVar(value='gaussian'),
-            'noise_intensity': tk.DoubleVar(value=0.05),
-            'contrast_clip_limit': tk.DoubleVar(value=2.5),
+            'noise_intensity': tk.DoubleVar(value=0.01),
+            'contrast_clip_limit': tk.DoubleVar(value=3.5),
             'color_channel': tk.StringVar(value='HSV'),
-            'max_area_ratio': tk.DoubleVar(value=0.3),
-            'segmentation_area_ratio': tk.DoubleVar(value=0.005),
-            'min_aspect_ratio': tk.DoubleVar(value=0.5),
-            'max_aspect_ratio': tk.DoubleVar(value=3.0),
-            'min_solidity': tk.DoubleVar(value=0.6),
-            'vertex_threshold': tk.IntVar(value=10),
+            'segmentation_area_ratio': tk.DoubleVar(value=0.002),
+            'max_area_ratio': tk.DoubleVar(value=0.35),
+            'min_aspect_ratio': tk.DoubleVar(value=0.4),
+            'max_aspect_ratio': tk.DoubleVar(value=4.0),
+            'min_solidity': tk.DoubleVar(value=0.7),
+            'vertex_threshold': tk.IntVar(value=8),
             'postprocess_kernel_size': tk.IntVar(value=5),
-            'morphology_operations': tk.IntVar(value=2)
+            'morphology_operations': tk.IntVar(value=3)
         },
         'controls': controls
     }
@@ -100,6 +100,7 @@ def setup_gui(root, control_vars, randomize_vars, image):
 
     image_labels = image_labels_top + image_labels_bottom
     setup_controls(frames, control_vars, randomize_vars, lambda: update_processing(control_vars, image_labels, image, randomize_vars), image_labels, image)
+    Button(control_frame, text="Randomize All", command=lambda: randomize_all(control_vars, randomize_vars, lambda: update_processing(control_vars, image_labels, image, randomize_vars))).grid(row=1, column=0, columnspan=4)
     return image_labels
 
 def setup_controls(frames, control_vars, randomize_vars, update_function, image_labels, image):
@@ -131,6 +132,21 @@ def on_option_select(var_name, value, control_vars, image_labels, image, randomi
 def set_random_values(control_vars, randomize_vars, update_function, section=None):
     triggered = False
     if section:
+        for label_text, control_type, var_name, kwargs in control_vars['controls'][section]:
+            if randomize_vars[var_name].get():
+                if control_type == OptionMenu:
+                    new_value = random.choice(kwargs['options'])
+                elif control_type == Scale:
+                    range_min, range_max = kwargs['from_'], kwargs['to']
+                    new_value = uniform(range_min, range_max)
+                control_vars['control_vars'][var_name].set(new_value)
+                triggered = True
+    if triggered:
+        update_function()
+
+def randomize_all(control_vars, randomize_vars, update_function):
+    triggered = False
+    for section in control_vars['controls'].keys():
         for label_text, control_type, var_name, kwargs in control_vars['controls'][section]:
             if randomize_vars[var_name].get():
                 if control_type == OptionMenu:
@@ -199,20 +215,16 @@ def add_salt_pepper_noise(image, intensity):
 
 def preprocess(image, clip_limit, color_channel):
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
-    channel_map = {
-        'HSV': 2,
-        'YCrCb': 0
-    }
-    if color_channel in channel_map:
+    if color_channel in ['HSV', 'YCrCb']:
         image = cv2.cvtColor(image, getattr(cv2, f'COLOR_BGR2{color_channel}'))
-        image[:, :, channel_map[color_channel]] = clahe.apply(image[:, :, channel_map[color_channel]])
+        image[:, :, 2] = clahe.apply(image[:, :, 2])
         processed_img = cv2.cvtColor(image, getattr(cv2, f'COLOR_{color_channel}2BGR'))
     else:
-        processed_img = np.stack([clahe.apply(image[:, :, i]) for i in range(3)], axis=-1)
+        processed_img = image
 
     filtered_img = cv2.bilateralFilter(processed_img, 9, 75, 75)
-    _, binary_img = cv2.threshold(cv2.cvtColor(filtered_img, cv2.COLOR_BGR2GRAY), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    return binary_img
+    adaptive_thresh = cv2.adaptiveThreshold(cv2.cvtColor(filtered_img, cv2.COLOR_BGR2GRAY), 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+    return adaptive_thresh
 
 def segment_vehicles(preprocessed_img, min_area_ratio, aspect_ratio_range, min_solidity, max_area_ratio, vertex_threshold):
     contours, _ = cv2.findContours(preprocessed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -250,14 +262,19 @@ def postprocess_segmentation(segmented_img, kernel_size, morphology_operations):
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
 
     morph_ops = [
-        lambda img: cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel),
-        lambda img: cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel),
-        lambda img: cv2.dilate(cv2.erode(img, kernel, iterations=2), kernel, iterations=2),
-        lambda img: cv2.erode(cv2.dilate(img, kernel, iterations=2), kernel, iterations=2),
-        lambda img: cv2.morphologyEx(cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel, iterations=2), cv2.MORPH_CLOSE, kernel, iterations=2)
+        lambda img: img,  # No operation
+        lambda img: cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel),  # Open operation
+        lambda img: cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel),  # Close operation
+        lambda img: cv2.dilate(cv2.erode(img, kernel, iterations=2), kernel, iterations=2),  # Dilation after erosion
+        lambda img: cv2.erode(cv2.dilate(img, kernel, iterations=2), kernel, iterations=2),  # Erosion after dilation
+        lambda img: cv2.morphologyEx(cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel, iterations=2), cv2.MORPH_CLOSE, kernel, iterations=2)  # Open then close
     ]
 
-    processed = morph_ops[min(morphology_operations - 1, len(morph_ops) - 1)](binary)
+    if 0 <= morphology_operations < len(morph_ops):
+        processed = morph_ops[morphology_operations](binary)
+    else:
+        processed = binary
+
     return cv2.bitwise_and(segmented_img, segmented_img, mask=processed)
 
 if __name__ == '__main__':
