@@ -15,6 +15,11 @@ def main():
     control_vars = initialize_control_vars()
     randomize_vars = {var: tk.BooleanVar(value=True) for var in control_vars['control_vars']}
     image_labels = setup_gui(root, control_vars, randomize_vars, image)
+    control_vars['previous_state'] = {
+        'noise_type': control_vars['control_vars']['noise_type'].get(),
+        'noise_intensity': control_vars['control_vars']['noise_intensity'].get(),
+        'noisy_img': None
+    }
     update_processing(control_vars, image_labels, image, randomize_vars)
     root.mainloop()
 
@@ -141,7 +146,19 @@ def randomize_all(control_vars, randomize_vars, update_function):
         update_function()
 
 def update_processing(control_vars, image_labels, original_image, randomize_vars):
-    noisy_img = add_noise(original_image.copy(), control_vars['control_vars']['noise_type'].get(), control_vars['control_vars']['noise_intensity'].get())
+    current_noise_type = control_vars['control_vars']['noise_type'].get()
+    current_noise_intensity = control_vars['control_vars']['noise_intensity'].get()
+    noise_changed = (current_noise_type != control_vars['previous_state']['noise_type'] or
+                     current_noise_intensity != control_vars['previous_state']['noise_intensity'])
+
+    if noise_changed or control_vars['previous_state']['noisy_img'] is None:
+        noisy_img = add_noise(original_image.copy(), current_noise_type, current_noise_intensity)
+        control_vars['previous_state']['noise_type'] = current_noise_type
+        control_vars['previous_state']['noise_intensity'] = current_noise_intensity
+        control_vars['previous_state']['noisy_img'] = noisy_img
+    else:
+        noisy_img = control_vars['previous_state']['noisy_img']
+
     preprocessed_img = preprocess(noisy_img, control_vars['control_vars']['contrast_clip_limit'].get(), control_vars['control_vars']['color_channel'].get(), control_vars['control_vars']['tile_grid_size'].get())
     segmented_img = segment_vehicles(preprocessed_img, control_vars['control_vars']['segmentation_area_ratio'].get(), 
                                      (control_vars['control_vars']['min_aspect_ratio'].get(), control_vars['control_vars']['max_aspect_ratio'].get()), 
@@ -149,6 +166,7 @@ def update_processing(control_vars, image_labels, original_image, randomize_vars
                                      control_vars['control_vars']['max_area_ratio'].get(), 
                                      control_vars['control_vars']['vertex_threshold'].get())
     postprocessed_img = postprocess_segmentation(segmented_img, control_vars['control_vars']['postprocess_kernel_size'].get(), control_vars['control_vars']['morphology_operations'].get())
+    control_vars['previous_state']['noisy_img'] = noisy_img
     display_images([original_image, noisy_img, preprocessed_img, segmented_img, postprocessed_img], image_labels)
 
 def display_images(images, image_labels):
