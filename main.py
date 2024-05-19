@@ -20,27 +20,19 @@ def main():
 
 def initialize_control_vars():
     controls = {
-        'noise_controls': [
-            ("Noise Intensity", Scale, 'noise_intensity', {'from_': 0, 'to': 0.1, 'resolution': 0.01}),
-            ("Noise Type", OptionMenu, 'noise_type', {'options': ['gaussian', 'salt_pepper']})
-        ],
-        'preprocessing_controls': [
-            ("Contrast Clip Limit", Scale, 'contrast_clip_limit', {'from_': 2.0, 'to': 4.0, 'resolution': 0.1}),
-            ("Tile Grid Size", Scale, 'tile_grid_size', {'from_': 2, 'to': 16, 'resolution': 2}),
-            ("Color Channel", OptionMenu, 'color_channel', {'options': ['BGR', 'HSV', 'YCrCb']})
-        ],
-        'segmentation_controls': [
-            ("Segmentation Area Ratio", Scale, 'segmentation_area_ratio', {'from_': 0.001, 'to': 0.01, 'resolution': 0.001}),
-            ("Max Area Ratio", Scale, 'max_area_ratio', {'from_': 0.1, 'to': 0.4, 'resolution': 0.01}),
-            ("Minimum Aspect Ratio", Scale, 'min_aspect_ratio', {'from_': 0.3, 'to': 1.0, 'resolution': 0.1}),
-            ("Maximum Aspect Ratio", Scale, 'max_aspect_ratio', {'from_': 1.0, 'to': 5.0, 'resolution': 0.1}),
-            ("Minimum Solidity", Scale, 'min_solidity', {'from_': 0.5, 'to': 1.0, 'resolution': 0.1}),
-            ("Vertex Count Threshold", Scale, 'vertex_threshold', {'from_': 4, 'to': 15, 'resolution': 1})
-        ],
-        'postprocessing_controls': [
-            ("Postprocessing Kernel Size", Scale, 'postprocess_kernel_size', {'from_': 3, 'to': 7, 'resolution': 1}),
-            ("Morphology Operations", Scale, 'morphology_operations', {'from_': 1, 'to': 5, 'resolution': 1})
-        ]
+        'noise_controls': [("Noise Intensity", Scale, 'noise_intensity', {'from_': 0, 'to': 0.1, 'resolution': 0.01}),
+                           ("Noise Type", OptionMenu, 'noise_type', {'options': ['gaussian', 'salt_pepper']})],
+        'preprocessing_controls': [("Contrast Clip Limit", Scale, 'contrast_clip_limit', {'from_': 2.0, 'to': 4.0, 'resolution': 0.1}),
+                                   ("Tile Grid Size", Scale, 'tile_grid_size', {'from_': 2, 'to': 16, 'resolution': 2}),
+                                   ("Color Channel", OptionMenu, 'color_channel', {'options': ['BGR', 'HSV', 'YCrCb']})],
+        'segmentation_controls': [("Segmentation Area Ratio", Scale, 'segmentation_area_ratio', {'from_': 0.001, 'to': 0.01, 'resolution': 0.001}),
+                                  ("Max Area Ratio", Scale, 'max_area_ratio', {'from_': 0.1, 'to': 0.4, 'resolution': 0.01}),
+                                  ("Minimum Aspect Ratio", Scale, 'min_aspect_ratio', {'from_': 0.3, 'to': 1.0, 'resolution': 0.1}),
+                                  ("Maximum Aspect Ratio", Scale, 'max_aspect_ratio', {'from_': 1.0, 'to': 5.0, 'resolution': 0.1}),
+                                  ("Minimum Solidity", Scale, 'min_solidity', {'from_': 0.5, 'to': 1.0, 'resolution': 0.1}),
+                                  ("Vertex Count Threshold", Scale, 'vertex_threshold', {'from_': 4, 'to': 15, 'resolution': 1})],
+        'postprocessing_controls': [("Postprocessing Kernel Size", Scale, 'postprocess_kernel_size', {'from_': 3, 'to': 7, 'resolution': 1}),
+                                    ("Morphology Operations", Scale, 'morphology_operations', {'from_': 1, 'to': 5, 'resolution': 1})]
     }
     return {
         'control_vars': {
@@ -64,11 +56,9 @@ def initialize_control_vars():
 def setup_gui(root, control_vars, randomize_vars, image):
     control_frame = Frame(root, bd=2, relief='sunken')
     control_frame.grid(row=0, column=0, columnspan=4, sticky='ew')
-
     frames = {key: Frame(control_frame, bd=2, relief='sunken') for key in ['noise_frame', 'preprocessing_frame', 'segmentation_frame', 'postprocessing_frame']}
     for i, key in enumerate(frames):
         frames[key].grid(row=0, column=i, padx=5, pady=5)
-
     image_frame_top, image_frame_bottom = Frame(root, bd=2, relief='sunken'), Frame(root, bd=2, relief='sunken')
     image_frame_top.grid(row=1, column=0, columnspan=4, sticky='nsew', padx=5, pady=5)
     image_frame_bottom.grid(row=3, column=0, columnspan=4, sticky='nsew', padx=5, pady=5)
@@ -76,7 +66,6 @@ def setup_gui(root, control_vars, randomize_vars, image):
     root.grid_rowconfigure(2, weight=0)
     root.grid_rowconfigure(3, weight=1)
     root.grid_columnconfigure(0, weight=1)
-
     titles_top = ["Original", "Noisy", "Preprocessed"]
     titles_bottom = ["Segmented", "Postprocessed"]
     for idx, title in enumerate(titles_top):
@@ -85,21 +74,12 @@ def setup_gui(root, control_vars, randomize_vars, image):
     for idx, title in enumerate(titles_bottom):
         label = Label(image_frame_bottom, text=title)
         label.grid(row=0, column=idx)
-
-    image_labels_top = [
-        Label(image_frame_top),
-        Label(image_frame_top),
-        Label(image_frame_top)
-    ]
-    image_labels_bottom = [
-        Label(image_frame_bottom),
-        Label(image_frame_bottom)
-    ]
+    image_labels_top = [Label(image_frame_top), Label(image_frame_top), Label(image_frame_top)]
+    image_labels_bottom = [Label(image_frame_bottom), Label(image_frame_bottom)]
     for idx, img_label in enumerate(image_labels_top):
         img_label.grid(row=1, column=idx, sticky='nsew')
     for idx, img_label in enumerate(image_labels_bottom):
         img_label.grid(row=1, column=idx, sticky='nsew')
-
     image_labels = image_labels_top + image_labels_bottom
     setup_controls(frames, control_vars, randomize_vars, lambda: update_processing(control_vars, image_labels, image, randomize_vars), image_labels, image)
     Button(control_frame, text="Randomize All", command=lambda: randomize_all(control_vars, randomize_vars, lambda: update_processing(control_vars, image_labels, image, randomize_vars))).grid(row=1, column=0, columnspan=4)
@@ -112,7 +92,6 @@ def setup_controls(frames, control_vars, randomize_vars, update_function, image_
         'segmentation_controls': 'segmentation_frame',
         'postprocessing_controls': 'postprocessing_frame'
     }
-
     for section, controls in control_vars['controls'].items():
         frame = frames[frame_keys[section]]
         for row_index, (label_text, widget, var_name, kwargs) in enumerate(controls):
@@ -162,8 +141,7 @@ def randomize_all(control_vars, randomize_vars, update_function):
         update_function()
 
 def update_processing(control_vars, image_labels, original_image, randomize_vars):
-    image = original_image.copy()    
-    noisy_img = add_noise(image, control_vars['control_vars']['noise_type'].get(), control_vars['control_vars']['noise_intensity'].get())
+    noisy_img = add_noise(original_image.copy(), control_vars['control_vars']['noise_type'].get(), control_vars['control_vars']['noise_intensity'].get())
     preprocessed_img = preprocess(noisy_img, control_vars['control_vars']['contrast_clip_limit'].get(), control_vars['control_vars']['color_channel'].get(), control_vars['control_vars']['tile_grid_size'].get())
     segmented_img = segment_vehicles(preprocessed_img, control_vars['control_vars']['segmentation_area_ratio'].get(), 
                                      (control_vars['control_vars']['min_aspect_ratio'].get(), control_vars['control_vars']['max_aspect_ratio'].get()), 
@@ -171,7 +149,6 @@ def update_processing(control_vars, image_labels, original_image, randomize_vars
                                      control_vars['control_vars']['max_area_ratio'].get(), 
                                      control_vars['control_vars']['vertex_threshold'].get())
     postprocessed_img = postprocess_segmentation(segmented_img, control_vars['control_vars']['postprocess_kernel_size'].get(), control_vars['control_vars']['morphology_operations'].get())
-
     display_images([original_image, noisy_img, preprocessed_img, segmented_img, postprocessed_img], image_labels)
 
 def display_images(images, image_labels):
@@ -206,13 +183,10 @@ def add_salt_pepper_noise(image, intensity):
     amount = row * col * ch * intensity
     num_salt = int(amount * s_vs_p)
     num_pepper = int(amount * (1 - s_vs_p))
-
     coords_salt = (np.random.randint(0, row, num_salt), np.random.randint(0, col, num_salt), np.random.randint(0, ch, num_salt))
     image[coords_salt] = 255
-
     coords_pepper = (np.random.randint(0, row, num_pepper), np.random.randint(0, col, num_pepper), np.random.randint(0, ch, num_pepper))
     image[coords_pepper] = 0
-
     return image
 
 def preprocess(image, clip_limit, color_channel, tile_grid_size):
@@ -225,7 +199,6 @@ def preprocess(image, clip_limit, color_channel, tile_grid_size):
         processed_img = cv2.cvtColor(image, getattr(cv2, f'COLOR_{color_channel}2BGR'))
     else:
         processed_img = image
-    
     filtered_img = cv2.bilateralFilter(processed_img, 9, 75, 75)
     adaptive_thresh = cv2.adaptiveThreshold(cv2.cvtColor(filtered_img, cv2.COLOR_BGR2GRAY), 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     return adaptive_thresh
@@ -234,9 +207,7 @@ def segment_vehicles(preprocessed_img, min_area_ratio, aspect_ratio_range, min_s
     contours, _ = cv2.findContours(preprocessed_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     min_area = preprocessed_img.shape[0] * preprocessed_img.shape[1] * min_area_ratio
     max_area = preprocessed_img.shape[0] * preprocessed_img.shape[1] * max_area_ratio
-
     mask = np.zeros(preprocessed_img.shape, dtype=np.uint8)
-    
     for contour in contours:
         area = cv2.contourArea(contour)
         if area < min_area or area > max_area:
@@ -246,12 +217,8 @@ def segment_vehicles(preprocessed_img, min_area_ratio, aspect_ratio_range, min_s
         hull = cv2.convexHull(contour)
         hull_area = cv2.contourArea(hull)
         solidity = area / hull_area if hull_area > 0 else 0
-
-        if (aspect_ratio_range[0] <= aspect_ratio <= aspect_ratio_range[1] and
-            solidity > min_solidity and
-            is_vehicle_shape(contour, hull, vertex_threshold)):
+        if (aspect_ratio_range[0] <= aspect_ratio <= aspect_ratio_range[1] and solidity > min_solidity and is_vehicle_shape(contour, hull, vertex_threshold)):
             cv2.drawContours(mask, [contour], -1, 255, -1)
-    
     return mask
 
 def is_vehicle_shape(contour, hull, vertex_threshold):
@@ -264,21 +231,18 @@ def postprocess_segmentation(segmented_img, kernel_size, morphology_operations):
     gray = cv2.cvtColor(segmented_img, cv2.COLOR_BGR2GRAY) if segmented_img.ndim == 3 else segmented_img
     _, binary = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
-
     morph_ops = [
-        lambda img: img,  # No operation
-        lambda img: cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel),  # Open operation
-        lambda img: cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel),  # Close operation
-        lambda img: cv2.dilate(cv2.erode(img, kernel, iterations=2), kernel, iterations=2),  # Dilation after erosion
-        lambda img: cv2.erode(cv2.dilate(img, kernel, iterations=2), kernel, iterations=2),  # Erosion after dilation
-        lambda img: cv2.morphologyEx(cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel, iterations=2), cv2.MORPH_CLOSE, kernel, iterations=2)  # Open then close
+        lambda img: img,
+        lambda img: cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel),
+        lambda img: cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel),
+        lambda img: cv2.dilate(cv2.erode(img, kernel, iterations=2), kernel, iterations=2),
+        lambda img: cv2.erode(cv2.dilate(img, kernel, iterations=2), kernel, iterations=2),
+        lambda img: cv2.morphologyEx(cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel, iterations=2), cv2.MORPH_CLOSE, kernel, iterations=2)
     ]
-
     if 0 <= morphology_operations < len(morph_ops):
         processed = morph_ops[morphology_operations](binary)
     else:
         processed = binary
-
     return cv2.bitwise_and(segmented_img, segmented_img, mask=processed)
 
 if __name__ == '__main__':
