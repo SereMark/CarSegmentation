@@ -9,7 +9,7 @@ from random import uniform
 def main():
     root = tk.Tk()
     root.title("Vehicle Segmentation Application")
-    root.geometry('1200x800')
+    root.geometry('2560x1440')
     image_path = "images/autopalya-2-1024x576.jpg"
     image = cv2.imread(image_path)
     control_vars = initialize_control_vars()
