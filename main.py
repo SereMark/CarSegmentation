@@ -27,33 +27,33 @@ def initialize_control_vars():
     controls = {
         'noise_controls': [("Noise Intensity", Scale, 'noise_intensity', {'from_': 0, 'to': 0.1, 'resolution': 0.01}),
                            ("Noise Type", OptionMenu, 'noise_type', {'options': ['gaussian', 'salt_pepper']})],
-        'preprocessing_controls': [("Contrast Clip Limit", Scale, 'contrast_clip_limit', {'from_': 2.0, 'to': 4.0, 'resolution': 0.1}),
-                                   ("Tile Grid Size", Scale, 'tile_grid_size', {'from_': 2, 'to': 16, 'resolution': 2}),
+        'preprocessing_controls': [("Contrast Clip Limit", Scale, 'contrast_clip_limit', {'from_': 3.0, 'to': 5.0, 'resolution': 0.1}),
+                                   ("Tile Grid Size", Scale, 'tile_grid_size', {'from_': 2, 'to': 8, 'resolution': 1}),
                                    ("Color Channel", OptionMenu, 'color_channel', {'options': ['BGR', 'HSV', 'YCrCb']})],
-        'segmentation_controls': [("Segmentation Area Ratio", Scale, 'segmentation_area_ratio', {'from_': 0.001, 'to': 0.01, 'resolution': 0.001}),
-                                  ("Max Area Ratio", Scale, 'max_area_ratio', {'from_': 0.1, 'to': 0.4, 'resolution': 0.01}),
-                                  ("Minimum Aspect Ratio", Scale, 'min_aspect_ratio', {'from_': 0.3, 'to': 1.0, 'resolution': 0.1}),
-                                  ("Maximum Aspect Ratio", Scale, 'max_aspect_ratio', {'from_': 1.0, 'to': 5.0, 'resolution': 0.1}),
-                                  ("Minimum Solidity", Scale, 'min_solidity', {'from_': 0.5, 'to': 1.0, 'resolution': 0.1}),
-                                  ("Vertex Count Threshold", Scale, 'vertex_threshold', {'from_': 4, 'to': 15, 'resolution': 1})],
-        'postprocessing_controls': [("Postprocessing Kernel Size", Scale, 'postprocess_kernel_size', {'from_': 3, 'to': 7, 'resolution': 1}),
-                                    ("Morphology Operations", Scale, 'morphology_operations', {'from_': 1, 'to': 5, 'resolution': 1})]
+        'segmentation_controls': [("Segmentation Area Ratio", Scale, 'segmentation_area_ratio', {'from_': 0.0005, 'to': 0.01, 'resolution': 0.0005}),
+                                  ("Max Area Ratio", Scale, 'max_area_ratio', {'from_': 0.2, 'to': 0.5, 'resolution': 0.05}),
+                                  ("Minimum Aspect Ratio", Scale, 'min_aspect_ratio', {'from_': 0.2, 'to': 1.0, 'resolution': 0.1}),
+                                  ("Maximum Aspect Ratio", Scale, 'max_aspect_ratio', {'from_': 1.0, 'to': 5.5, 'resolution': 0.1}),
+                                  ("Minimum Solidity", Scale, 'min_solidity', {'from_': 0.4, 'to': 1.0, 'resolution': 0.1}),
+                                  ("Vertex Count Threshold", Scale, 'vertex_threshold', {'from_': 4, 'to': 20, 'resolution': 1})],
+        'postprocessing_controls': [("Postprocessing Kernel Size", Scale, 'postprocess_kernel_size', {'from_': 5, 'to': 9, 'resolution': 1}),
+                                    ("Morphology Operations", Scale, 'morphology_operations', {'from_': 1, 'to': 7, 'resolution': 1})]
     }
     return {
         'control_vars': {
             'noise_type': tk.StringVar(value='gaussian'),
             'noise_intensity': tk.DoubleVar(value=0.01),
-            'contrast_clip_limit': tk.DoubleVar(value=3.5),
-            'tile_grid_size': tk.IntVar(value=8),
+            'contrast_clip_limit': tk.DoubleVar(value=4.0),
+            'tile_grid_size': tk.IntVar(value=6),
             'color_channel': tk.StringVar(value='HSV'),
-            'segmentation_area_ratio': tk.DoubleVar(value=0.002),
+            'segmentation_area_ratio': tk.DoubleVar(value=0.0015),
             'max_area_ratio': tk.DoubleVar(value=0.35),
-            'min_aspect_ratio': tk.DoubleVar(value=0.4),
-            'max_aspect_ratio': tk.DoubleVar(value=4.0),
-            'min_solidity': tk.DoubleVar(value=0.7),
-            'vertex_threshold': tk.IntVar(value=8),
-            'postprocess_kernel_size': tk.IntVar(value=5),
-            'morphology_operations': tk.IntVar(value=3)
+            'min_aspect_ratio': tk.DoubleVar(value=0.3),
+            'max_aspect_ratio': tk.DoubleVar(value=4.5),
+            'min_solidity': tk.DoubleVar(value=0.6),
+            'vertex_threshold': tk.IntVar(value=10),
+            'postprocess_kernel_size': tk.IntVar(value=7),
+            'morphology_operations': tk.IntVar(value=4)
         },
         'controls': controls
     }
