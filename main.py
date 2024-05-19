@@ -41,19 +41,19 @@ def initialize_control_vars():
     }
     return {
         'control_vars': {
-            'noise_type': tk.StringVar(value='gaussian'),
-            'noise_intensity': tk.DoubleVar(value=0.01),
-            'contrast_clip_limit': tk.DoubleVar(value=4.0),
-            'tile_grid_size': tk.IntVar(value=6),
-            'color_channel': tk.StringVar(value='HSV'),
-            'segmentation_area_ratio': tk.DoubleVar(value=0.0015),
-            'max_area_ratio': tk.DoubleVar(value=0.35),
-            'min_aspect_ratio': tk.DoubleVar(value=0.3),
-            'max_aspect_ratio': tk.DoubleVar(value=4.5),
-            'min_solidity': tk.DoubleVar(value=0.6),
-            'vertex_threshold': tk.IntVar(value=10),
-            'postprocess_kernel_size': tk.IntVar(value=7),
-            'morphology_operations': tk.IntVar(value=4)
+            'noise_type': tk.StringVar(value='salt_pepper'),
+            'noise_intensity': tk.DoubleVar(value=0.09),
+            'contrast_clip_limit': tk.DoubleVar(value=5.0),
+            'tile_grid_size': tk.IntVar(value=2),
+            'color_channel': tk.StringVar(value='BGR'),
+            'segmentation_area_ratio': tk.DoubleVar(value=0.0005),
+            'max_area_ratio': tk.DoubleVar(value=0.50),
+            'min_aspect_ratio': tk.DoubleVar(value=0.7),
+            'max_aspect_ratio': tk.DoubleVar(value=3.7),
+            'min_solidity': tk.DoubleVar(value=0.5),
+            'vertex_threshold': tk.IntVar(value=12),
+            'postprocess_kernel_size': tk.IntVar(value=9),
+            'morphology_operations': tk.IntVar(value=7)
         },
         'controls': controls
     }
