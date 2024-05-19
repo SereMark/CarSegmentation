@@ -10,7 +10,7 @@ def main():
     root = tk.Tk()
     root.title("Vehicle Segmentation Application")
     root.geometry('1200x800')
-    image_path = "images/motorway_446770915_1000.jpg"
+    image_path = "images/autopalya-2-1024x576.jpg"
     image = cv2.imread(image_path)
     control_vars = initialize_control_vars()
     randomize_vars = {var: tk.BooleanVar(value=True) for var in control_vars['control_vars']}
@@ -26,6 +26,7 @@ def initialize_control_vars():
         ],
         'preprocessing_controls': [
             ("Contrast Clip Limit", Scale, 'contrast_clip_limit', {'from_': 2.0, 'to': 4.0, 'resolution': 0.1}),
+            ("Tile Grid Size", Scale, 'tile_grid_size', {'from_': 2, 'to': 16, 'resolution': 2}),
             ("Color Channel", OptionMenu, 'color_channel', {'options': ['BGR', 'HSV', 'YCrCb']})
         ],
         'segmentation_controls': [
@@ -46,6 +47,7 @@ def initialize_control_vars():
             'noise_type': tk.StringVar(value='gaussian'),
             'noise_intensity': tk.DoubleVar(value=0.01),
             'contrast_clip_limit': tk.DoubleVar(value=3.5),
+            'tile_grid_size': tk.IntVar(value=8),
             'color_channel': tk.StringVar(value='HSV'),
             'segmentation_area_ratio': tk.DoubleVar(value=0.002),
             'max_area_ratio': tk.DoubleVar(value=0.35),
@@ -162,7 +164,7 @@ def randomize_all(control_vars, randomize_vars, update_function):
 def update_processing(control_vars, image_labels, original_image, randomize_vars):
     image = original_image.copy()    
     noisy_img = add_noise(image, control_vars['control_vars']['noise_type'].get(), control_vars['control_vars']['noise_intensity'].get())
-    preprocessed_img = preprocess(noisy_img, control_vars['control_vars']['contrast_clip_limit'].get(), control_vars['control_vars']['color_channel'].get())
+    preprocessed_img = preprocess(noisy_img, control_vars['control_vars']['contrast_clip_limit'].get(), control_vars['control_vars']['color_channel'].get(), control_vars['control_vars']['tile_grid_size'].get())
     segmented_img = segment_vehicles(preprocessed_img, control_vars['control_vars']['segmentation_area_ratio'].get(), 
                                      (control_vars['control_vars']['min_aspect_ratio'].get(), control_vars['control_vars']['max_aspect_ratio'].get()), 
                                      control_vars['control_vars']['min_solidity'].get(), 
@@ -213,15 +215,17 @@ def add_salt_pepper_noise(image, intensity):
 
     return image
 
-def preprocess(image, clip_limit, color_channel):
-    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
+def preprocess(image, clip_limit, color_channel, tile_grid_size):
+    tile_size = (tile_grid_size, tile_grid_size)
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_size)
     if color_channel in ['HSV', 'YCrCb']:
         image = cv2.cvtColor(image, getattr(cv2, f'COLOR_BGR2{color_channel}'))
-        image[:, :, 2] = clahe.apply(image[:, :, 2])
+        for i in range(2):
+            image[:, :, i] = clahe.apply(image[:, :, i])
         processed_img = cv2.cvtColor(image, getattr(cv2, f'COLOR_{color_channel}2BGR'))
     else:
         processed_img = image
-
+    
     filtered_img = cv2.bilateralFilter(processed_img, 9, 75, 75)
     adaptive_thresh = cv2.adaptiveThreshold(cv2.cvtColor(filtered_img, cv2.COLOR_BGR2GRAY), 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
     return adaptive_thresh
